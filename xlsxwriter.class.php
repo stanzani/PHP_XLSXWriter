@@ -18,7 +18,8 @@ class XLSXWriter
 	protected $company;
 	protected $description;
 	protected $keywords = array();
-	
+	protected $custom_properties = array();
+
 	protected $current_sheet;
 	protected $sheets = array();
 	protected $temp_files = array();
@@ -45,6 +46,7 @@ class XLSXWriter
 	public function setKeywords($keywords='') { $this->keywords=$keywords; }
 	public function setDescription($description='') { $this->description=$description; }
 	public function setTempDir($tempdir='') { $this->tempdir=$tempdir; }
+	public function setCustomProperties($custom_properties=array()) { $this->custom_properties=$custom_properties; }
 
 	public function __destruct()
 	{
@@ -99,6 +101,9 @@ class XLSXWriter
 		$zip->addEmptyDir("docProps/");
 		$zip->addFromString("docProps/app.xml" , self::buildAppXML() );
 		$zip->addFromString("docProps/core.xml", self::buildCoreXML());
+		if(!empty($this->custom_properties)) {
+			$zip->addFromString("docProps/custom.xml", self::buildCustomPropertiesXML());
+		}
 
 		$zip->addEmptyDir("_rels/");
 		$zip->addFromString("_rels/.rels", self::buildRelationshipsXML());
@@ -634,6 +639,41 @@ class XLSXWriter
 		return $core_xml;
 	}
 
+	protected function buildCustomPropertiesXML()
+	{
+		$FMTID_UserDefinedProperties = '{D5CDD505-2E9C-101B-9397-08002B2CF9AE}';
+		$core_xml="";
+		$core_xml.='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'."\n";
+		$core_xml.='<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">';
+		$pid = 1;
+		foreach($this->custom_properties as $value) {
+			$core_xml .= '<property fmtid="' . $FMTID_UserDefinedProperties . '" pid="' . (++$pid) . '" name="' . $value['name'] . '">';
+			switch($value['type']) {
+				case 'text':
+					$core_xml .= '<vt:lpwstr>' . self::xmlspecialchars($value['value']) . '</vt:lpwstr>';
+				break;
+				case 'number':
+					if(is_float($value['value'])) {
+						$core_xml .= '<vt:r8>' . (float) $value['value'] . '</vt:r8>';
+					}else{
+						$core_xml .= '<vt:i4>' . (int) $value['value'] . '</vt:i4>';
+					}
+
+				break;
+				case 'date':
+					$core_xml .= '<vt:filetime>' . date("Y-m-d\TH:i:s.00\Z", strtotime($value['value'])) . '</vt:filetime>';
+				break;
+				case 'boolean':
+					$value['value'] = $value['value'] ? 'true': 'false';
+					$core_xml .= '<vt:bool>' . $value['value'] . '</vt:bool>';
+				break;
+			}
+			$core_xml.='</property>';
+		}
+		$core_xml.='</Properties>';
+		return $core_xml;
+	}
+
 	protected function buildRelationshipsXML()
 	{
 		$rels_xml="";
@@ -642,6 +682,9 @@ class XLSXWriter
 		$rels_xml.='<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>';
 		$rels_xml.='<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>';
 		$rels_xml.='<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>';
+		if(!empty($this->custom_properties)) {
+			$rels_xml.='<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/custom-properties" Target="docProps/custom.xml"/>';
+		}
 		$rels_xml.="\n";
 		$rels_xml.='</Relationships>';
 		return $rels_xml;
@@ -705,9 +748,12 @@ class XLSXWriter
 		$content_types_xml.='<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>';
 		$content_types_xml.='<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>';
 		$content_types_xml.='<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>';
-		$content_types_xml.="\n";
+		if(!empty($this->custom_properties)) {
+			$content_types_xml.='<Override PartName="/docProps/custom.xml" ContentType="application/vnd.openxmlformats-officedocument.custom-properties+xml"/>';
+		}
 		$content_types_xml.='</Types>';
 		return $content_types_xml;
+
 	}
 
 	//------------------------------------------------------------------

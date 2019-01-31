@@ -11,6 +11,28 @@ $writer->setAuthor('Some Author');
 $writer->setCompany('Some Company');
 $writer->setKeywords($keywords);
 $writer->setDescription('Some interesting description');
+$writer->setCustomProperties([
+            [
+                'name'=>'Set a Name',
+                'type'=>'text',
+                'value'=>'Text value'
+            ],
+            [
+                'name'=>'Yer or No Option',
+                'type'=>'boolean',
+                'value'=>true
+            ],
+            [
+                'name'=>'Date field',
+                'type'=>'date',
+                'value'=>'2019-01-31 10:25'
+            ],
+            [
+                'name'=>'Numberic field',
+                'type'=>'number',
+                'value'=>999.55
+            ],
+        ]);
 $writer->setTempDir(sys_get_temp_dir());//set custom tempdir
 
 //----
